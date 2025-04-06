@@ -1,11 +1,5 @@
 # MCP Chat Logger
 
-<div align="center">
-  <a href="README_zh.md">中文</a> | <a href="README_en.md">English</a>
-</div>
-
----
-
 MCP Chat Logger是一个简单而强大的聊天记录保存工具，可以将聊天历史保存为Markdown格式文件，便于后续查看和分享。
 
 ## 功能特点
@@ -61,8 +55,6 @@ MCP_Chat_Logger/
 ├── chat_logger.py      # 核心功能实现
 ├── chat_logs/          # 默认保存目录
 ├── README.md           # 项目说明
-├── README_zh.md        # 中文说明
-├── README_en.md        # 英文说明
 └── .gitignore          # Git忽略文件
 ```
 
@@ -78,4 +70,4 @@ MCP_Chat_Logger/
 
 ## 许可证
 
-该项目采用MIT许可证 - 详情请查看 LICENSE 文件。
+该项目采用MIT许可证 - 详情请查看 LICENSE 文件。 
