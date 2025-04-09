@@ -1,5 +1,7 @@
 # MCP Chat Logger
 
+[![smithery badge](https://smithery.ai/badge/@AlexiFeng/MCP_Chat_Logger)](https://smithery.ai/server/@AlexiFeng/MCP_Chat_Logger)
+
 <div align="center">
   <a href="README_zh.md">中文</a> | <a href="README_en.md">English</a>
 </div>
@@ -19,6 +21,14 @@ MCP Chat Logger是一个简单而强大的聊天记录保存工具，可以将�
 添加Overview功能
 
 ### 安装步骤
+
+#### Installing via Smithery
+
+To install MCP Chat Logger for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@AlexiFeng/MCP_Chat_Logger):
+
+```bash
+npx -y @smithery/cli install @AlexiFeng/MCP_Chat_Logger --client claude
+```
 
 1. 克隆这个代码库：
 
