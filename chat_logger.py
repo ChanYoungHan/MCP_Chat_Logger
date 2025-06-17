@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-from rabbitmq_publisher import publish_chat_message, get_publisher
+from utils.rabbitmq_publisher import publish_chat_message, get_publisher
 
 # Load environment variables
 load_dotenv()
