@@ -8,58 +8,78 @@
 
 ---
 
-MCP Chat Logger is a simple yet powerful tool for saving chat history as Markdown format files with real-time message publishing through RabbitMQ support.
+MCP Chat Logger is a simple yet powerful tool for saving chat history as Markdown format files with real-time message publishing through RabbitMQ support. It supports both development and production environment configurations.
 
 ## 🚀 Quick Start
 
-### Easy Setup with Makefile
+### 1. Project Setup
 
 ```bash
-# 1. Complete initial setup (install dependencies + environment setup)
-make setup
+# Clone repository
+git clone https://github.com/yourusername/MCP_Chat_Logger.git
+cd MCP_Chat_Logger
 
-# 2. Start RabbitMQ server
-make start-rabbitmq
-
-# 3. Test RabbitMQ connection
-make test-rabbitmq
-
-# 4. Run MCP server
-make run
+# Install dependencies
+uv add "mcp[cli]>=1.6.0"
+uv add "pika>=1.3.0" 
+uv add "python-dotenv>=1.0.0"
 ```
 
-### Available Make Commands
+### 2. Environment Selection
 
-| Command | Description |
-|---------|-------------|
-| `make help` | Display all available commands |
-| `make install` | Install project dependencies |
-| `make setup-env` | Setup environment variables (.env file) |
-| `make start-rabbitmq` | Start RabbitMQ server (Docker) |
-| `make stop-rabbitmq` | Stop RabbitMQ server |
-| `make test-rabbitmq` | Test RabbitMQ connection |
-| `make run` | Run MCP Chat Logger server |
-| `make clean` | Clean temporary files |
-| `make setup` | Complete initial setup (install + setup-env) |
+This project supports **Development** and **Production** environment configurations:
 
-## Features
+#### 🛠️ Development Environment (Local Docker RabbitMQ)
 
-- 🐰 **RabbitMQ Integration**: Real-time message publishing and subscription support
-- 📝 **Markdown Storage**: Save chat history in clean Markdown format
-- ⏰ **Timestamps**: Automatically add timestamps to each message
-- 📁 **Custom Directory**: Support for user-defined save directories
-- 🔍 **Session Management**: Support session IDs to identify different conversations
-- 🛠️ **Environment Variables**: Configuration management through `.env` files
-- 🔧 **Testing Tools**: RabbitMQ connection and configuration verification tools
-
-## RabbitMQ Configuration
-
-### Environment Variables
-
-Create a `.env` file to manage RabbitMQ settings:
+Local Docker-based RabbitMQ environment for development and testing.
 
 ```bash
-# .env file example
+# Create environment variables file
+cp dev-tools/.env.example .env
+
+# Start RabbitMQ server with Docker
+cd dev-tools
+docker-compose up -d
+
+# Test connection
+uv run test_rabbitmq.py
+
+# Run MCP server
+cd ..
+uv run chat_logger.py
+```
+
+#### ☁️ Production Environment (CloudAMQP Recommended)
+
+For actual service deployment, we recommend using managed RabbitMQ services like **CloudAMQP**.
+
+```bash
+# Create .env file directly
+cat > .env << EOF
+RABBITMQ_HOST=your-cloudamqp-url.com
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=your-username
+RABBITMQ_PASSWORD=your-password
+RABBITMQ_VIRTUAL_HOST=your-vhost
+RABBITMQ_EXCHANGE=llmLogger
+RABBITMQ_ROUTING_KEY=llm_logger
+RABBITMQ_QUEUE_NAME=llm_logger
+EOF
+
+# Run MCP server
+uv run chat_logger.py
+```
+
+## 📋 Environment-Specific Configuration
+
+### Development Environment Setup
+
+#### Environment Variables File
+
+Copy `dev-tools/.env.example` to create `.env` file:
+
+```bash
+# RabbitMQ Configuration (Development)
 RABBITMQ_HOST=localhost
 RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=guest
@@ -70,6 +90,68 @@ RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
 ```
 
+#### Docker Commands
+
+```bash
+# Start RabbitMQ server
+cd dev-tools
+docker-compose up -d
+
+# Stop RabbitMQ server
+docker-compose down
+
+# View logs
+docker-compose logs rabbitmq
+
+# Access Web management UI: http://localhost:15672 (guest/guest)
+```
+
+#### Development Tools Execution
+
+```bash
+# RabbitMQ connection test
+cd dev-tools
+uv run test_rabbitmq.py
+
+# Or from project root
+uv run dev-tools/test_rabbitmq.py
+```
+
+### Production Environment Setup
+
+#### CloudAMQP Configuration (Recommended)
+
+1. Create [CloudAMQP](https://www.cloudamqp.com/) account
+2. Create RabbitMQ instance
+3. Set connection information in `.env` file
+
+```bash
+# CloudAMQP connection example
+RABBITMQ_HOST=your-instance.cloudamqp.com
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=your-username
+RABBITMQ_PASSWORD=your-password
+RABBITMQ_VIRTUAL_HOST=your-vhost
+RABBITMQ_EXCHANGE=llmLogger
+RABBITMQ_ROUTING_KEY=llm_logger
+RABBITMQ_QUEUE_NAME=llm_logger
+
+# Optional connection settings
+RABBITMQ_CONNECTION_TIMEOUT=30
+RABBITMQ_HEARTBEAT=600
+RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
+```
+
+## Features
+
+- 🐰 **RabbitMQ Integration**: Real-time message publishing and subscription support
+- 📝 **Markdown Storage**: Save chat history in clean Markdown format
+- ⏰ **Timestamps**: Automatically add timestamps to each message
+- 📁 **Custom Directory**: Support for user-defined save directories
+- 🔍 **Session Management**: Support session IDs to identify different conversations
+- 🛠️ **Environment Variables**: Configuration management through `.env` files
+- ☁️ **Multi-Environment Support**: Support for development (Docker) and production (CloudAMQP) environments
+
 ### Exchange Design
 
 - **Exchange Name**: `llmLogger`
@@ -78,70 +160,13 @@ RABBITMQ_QUEUE_NAME=llm_logger
 - **Queue Name**: `llm_logger`
 - **Binding**: Queue `llm_logger` bound to Exchange `llmLogger` with Routing Key `llm_logger`
 
-### New MCP Tools
+### Available MCP Tools
 
-1. **test_rabbitmq_connection**: Test RabbitMQ connection
-2. **get_rabbitmq_config**: Check current RabbitMQ configuration
-3. **save_chat_history**: File saving + RabbitMQ message publishing (extended functionality)
+1. **save_chat_history**: Save chat history as Markdown files and publish to RabbitMQ
+2. **test_rabbitmq_connection**: Test RabbitMQ connection status
+3. **get_rabbitmq_config**: Check current RabbitMQ configuration
 
-## Installation & Setup
-
-### Automatic Installation via Smithery
-
-Install MCP Chat Logger for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@AlexiFeng/MCP_Chat_Logger):
-
-```bash
-npx -y @smithery/cli install @AlexiFeng/MCP_Chat_Logger --client claude
-```
-
-### Manual Installation
-
-1. **Clone Repository**:
-```bash
-git clone https://github.com/yourusername/MCP_Chat_Logger.git
-cd MCP_Chat_Logger
-```
-
-2. **Prerequisites**: Install `uv` beforehand
-
-3. **Install Dependencies**:
-```bash
-make install
-# Or manually:
-uv add "mcp[cli]>=1.6.0"
-uv add "pika>=1.3.0"
-uv add "python-dotenv>=1.0.0"
-```
-
-4. **Environment Setup**:
-```bash
-make setup-env
-# Or manually:
-cp .env.example .env
-nano .env  # Modify as needed
-```
-
-## Usage
-
-### RabbitMQ Environment
-
-1. **Start RabbitMQ Server**:
-```bash
-make start-rabbitmq
-# Web management UI: http://localhost:15672 (guest/guest)
-```
-
-2. **Test Connection**:
-```bash
-make test-rabbitmq
-```
-
-3. **Run MCP Server**:
-```bash
-make run
-```
-
-### Claude Desktop / Cursor Configuration
+## Claude Desktop / Cursor Configuration
 
 ```json
 {
@@ -156,49 +181,40 @@ make run
       "chat_logger.py"
     ],
     "env": {
-      "RABBITMQ_HOST": "localhost"
+      "RABBITMQ_HOST": "your-rabbitmq-host"
     }
   }
 }
 ```
 
-### Available MCP Tools
-
-1. **save_chat_history**: Save chat history as Markdown files and publish to RabbitMQ
-2. **test_rabbitmq_connection**: Test RabbitMQ connection status
-3. **get_rabbitmq_config**: Check current RabbitMQ configuration
-
 ## Project Structure
 
 ```
 MCP_Chat_Logger/
-├── chat_logger.py         # Main MCP server (RabbitMQ integration)
-├── rabbitmq_publisher.py  # RabbitMQ message publishing module
-├── test_rabbitmq.py       # RabbitMQ connection test script
-├── Makefile              # Convenience commands
-├── .env.example           # Environment variables example
-├── .env                   # Environment variables config (user-created)
-├── docker-compose.yml     # RabbitMQ Docker configuration
-├── rabbitmq_init/        # RabbitMQ initialization scripts
-│   └── init.sh
+├── chat_logger.py         # Main MCP server
+├── utils/                 # Utility modules
+│   └── rabbitmq_publisher.py  # RabbitMQ message publishing module
+├── dev-tools/            # Development environment tools
+│   ├── docker-compose.yml    # RabbitMQ Docker configuration
+│   ├── .env.example          # Development environment variables example
+│   └── test_rabbitmq.py      # RabbitMQ connection test script
 ├── chat_logs/            # Default save directory
 ├── pyproject.toml        # Project settings and dependencies
-├── README.md             # Project description (Korean)
-├── README_zh.md          # Chinese description
+├── .env                  # Environment variables config (user-created)
+├── README.md             # Project description (Chinese)
+├── README_ko.md          # Korean description
 ├── README_en.md          # English description
 └── .gitignore            # Git ignore file
 ```
 
-## Development & Maintenance
+## Installation Options
 
-### Cleanup Commands
+### Automatic Installation via Smithery
+
+Install MCP Chat Logger for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@AlexiFeng/MCP_Chat_Logger):
 
 ```bash
-# Clean temporary files
-make clean
-
-# Stop RabbitMQ server
-make stop-rabbitmq
+npx -y @smithery/cli install @AlexiFeng/MCP_Chat_Logger --client claude
 ```
 
 ## Next Steps
@@ -206,6 +222,7 @@ make stop-rabbitmq
 - Add Overview functionality
 - Message format customization options
 - Additional message broker support
+- High availability configuration guide
 
 ## Contribution Guidelines
 

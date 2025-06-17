@@ -8,58 +8,78 @@
 
 ---
 
-MCP Chat Logger是一个简单而强大的聊天记录保存工具，可以将聊天历史保存为Markdown格式文件，并支持通过RabbitMQ进行实时消息发布。
+MCP Chat Logger是一个简单而强大的聊天记录保存工具，可以将聊天历史保存为Markdown格式文件，并支持通过RabbitMQ进行实时消息发布。支持开发环境和生产环境双重配置。
 
 ## 🚀 快速开始
 
-### 使用Makefile简便设置
+### 1. 项目设置
 
 ```bash
-# 1. 完整初始设置（安装依赖+环境设置）
-make setup
+# 克隆仓库
+git clone https://github.com/yourusername/MCP_Chat_Logger.git
+cd MCP_Chat_Logger
 
-# 2. 启动RabbitMQ服务器
-make start-rabbitmq
-
-# 3. 测试RabbitMQ连接
-make test-rabbitmq
-
-# 4. 运行MCP服务器
-make run
+# 安装依赖
+uv add "mcp[cli]>=1.6.0"
+uv add "pika>=1.3.0" 
+uv add "python-dotenv>=1.0.0"
 ```
 
-### 可用的Make命令
+### 2. 环境选择
 
-| 命令 | 说明 |
-|------|------|
-| `make help` | 显示所有可用命令 |
-| `make install` | 安装项目依赖 |
-| `make setup-env` | 设置环境变量（.env文件） |
-| `make start-rabbitmq` | 启动RabbitMQ服务器（Docker） |
-| `make stop-rabbitmq` | 停止RabbitMQ服务器 |
-| `make test-rabbitmq` | 测试RabbitMQ连接 |
-| `make run` | 运行MCP Chat Logger服务器 |
-| `make clean` | 清理临时文件 |
-| `make setup` | 完整初始设置（install + setup-env） |
+本项目支持**开发环境**和**生产环境**两种配置：
 
-## 功能特点
+#### 🛠️ 开发环境（本地Docker RabbitMQ）
 
-- 🐰 **RabbitMQ集成**：实时消息发布和订阅支持
-- 📝 **Markdown存储**：将聊天记录保存为整洁的Markdown格式
-- ⏰ **时间戳**：自动为每条消息添加时间戳
-- 📁 **自定义目录**：支持用户自定义保存目录
-- 🔍 **会话管理**：支持会话ID标识不同的对话
-- 🛠️ **环境变量**：通过`.env`文件进行配置管理
-- 🔧 **测试工具**：提供RabbitMQ连接和配置验证工具
-
-## RabbitMQ配置
-
-### 环境变量
-
-创建`.env`文件来管理RabbitMQ设置：
+用于开发和测试的本地Docker RabbitMQ环境。
 
 ```bash
-# .env文件示例
+# 创建环境变量文件
+cp dev-tools/.env.example .env
+
+# 使用Docker启动RabbitMQ服务器
+cd dev-tools
+docker-compose up -d
+
+# 连接测试
+uv run test_rabbitmq.py
+
+# 运行MCP服务器
+cd ..
+uv run chat_logger.py
+```
+
+#### ☁️ 生产环境（推荐CloudAMQP）
+
+对于实际服务部署，推荐使用**CloudAMQP**等托管RabbitMQ服务。
+
+```bash
+# 直接创建.env文件
+cat > .env << EOF
+RABBITMQ_HOST=your-cloudamqp-url.com
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=your-username
+RABBITMQ_PASSWORD=your-password
+RABBITMQ_VIRTUAL_HOST=your-vhost
+RABBITMQ_EXCHANGE=llmLogger
+RABBITMQ_ROUTING_KEY=llm_logger
+RABBITMQ_QUEUE_NAME=llm_logger
+EOF
+
+# 运行MCP服务器
+uv run chat_logger.py
+```
+
+## 📋 环境详细配置
+
+### 开发环境配置
+
+#### 环境变量文件
+
+复制`dev-tools/.env.example`创建`.env`文件：
+
+```bash
+# RabbitMQ Configuration (Development)
 RABBITMQ_HOST=localhost
 RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=guest
@@ -70,6 +90,68 @@ RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
 ```
 
+#### Docker命令
+
+```bash
+# 启动RabbitMQ服务器
+cd dev-tools
+docker-compose up -d
+
+# 停止RabbitMQ服务器
+docker-compose down
+
+# 查看日志
+docker-compose logs rabbitmq
+
+# 访问Web管理界面：http://localhost:15672 (guest/guest)
+```
+
+#### 开发工具运行
+
+```bash
+# RabbitMQ连接测试
+cd dev-tools
+uv run test_rabbitmq.py
+
+# 或从项目根目录
+uv run dev-tools/test_rabbitmq.py
+```
+
+### 生产环境配置
+
+#### CloudAMQP设置（推荐）
+
+1. 创建[CloudAMQP](https://www.cloudamqp.com/)账户
+2. 创建RabbitMQ实例
+3. 在`.env`文件中设置连接信息
+
+```bash
+# CloudAMQP连接示例
+RABBITMQ_HOST=your-instance.cloudamqp.com
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=your-username
+RABBITMQ_PASSWORD=your-password
+RABBITMQ_VIRTUAL_HOST=your-vhost
+RABBITMQ_EXCHANGE=llmLogger
+RABBITMQ_ROUTING_KEY=llm_logger
+RABBITMQ_QUEUE_NAME=llm_logger
+
+# 可选连接设置
+RABBITMQ_CONNECTION_TIMEOUT=30
+RABBITMQ_HEARTBEAT=600
+RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
+```
+
+## 功能特点
+
+- 🐰 **RabbitMQ集成**：实时消息发布和订阅支持
+- 📝 **Markdown存储**：将聊天记录保存为整洁的Markdown格式
+- ⏰ **时间戳**：自动为每条消息添加时间戳
+- 📁 **自定义目录**：支持用户自定义保存目录
+- 🔍 **会话管理**：支持会话ID标识不同的对话
+- 🛠️ **环境变量**：通过`.env`文件进行配置管理
+- ☁️ **多环境支持**：支持开发环境（Docker）和生产环境（CloudAMQP）
+
 ### Exchange设计
 
 - **Exchange名称**：`llmLogger`
@@ -78,70 +160,13 @@ RABBITMQ_QUEUE_NAME=llm_logger
 - **队列名称**：`llm_logger`
 - **绑定**：队列`llm_logger`通过路由键`llm_logger`绑定到Exchange `llmLogger`
 
-### 新的MCP工具
+### 可用的MCP工具
 
-1. **test_rabbitmq_connection**：测试RabbitMQ连接
-2. **get_rabbitmq_config**：检查当前RabbitMQ配置
-3. **save_chat_history**：文件保存 + RabbitMQ消息发布（扩展功能）
+1. **save_chat_history**：将聊天记录保存为Markdown文件并发布到RabbitMQ
+2. **test_rabbitmq_connection**：测试RabbitMQ连接状态
+3. **get_rabbitmq_config**：检查当前RabbitMQ配置
 
-## 安装和设置
-
-### 通过Smithery自动安装
-
-通过[Smithery](https://smithery.ai/server/@AlexiFeng/MCP_Chat_Logger)为Claude Desktop自动安装MCP Chat Logger：
-
-```bash
-npx -y @smithery/cli install @AlexiFeng/MCP_Chat_Logger --client claude
-```
-
-### 手动安装
-
-1. **克隆仓库**：
-```bash
-git clone https://github.com/yourusername/MCP_Chat_Logger.git
-cd MCP_Chat_Logger
-```
-
-2. **前提条件**：提前安装`uv`
-
-3. **安装依赖**：
-```bash
-make install
-# 或手动：
-uv add "mcp[cli]>=1.6.0"
-uv add "pika>=1.3.0"
-uv add "python-dotenv>=1.0.0"
-```
-
-4. **环境设置**：
-```bash
-make setup-env
-# 或手动：
-cp .env.example .env
-nano .env  # 根据需要修改
-```
-
-## 使用方法
-
-### RabbitMQ环境
-
-1. **启动RabbitMQ服务器**：
-```bash
-make start-rabbitmq
-# Web管理界面：http://localhost:15672 (guest/guest)
-```
-
-2. **测试连接**：
-```bash
-make test-rabbitmq
-```
-
-3. **运行MCP服务器**：
-```bash
-make run
-```
-
-### Claude Desktop / Cursor配置
+## Claude Desktop / Cursor配置
 
 ```json
 {
@@ -156,49 +181,40 @@ make run
       "chat_logger.py"
     ],
     "env": {
-      "RABBITMQ_HOST": "localhost"
+      "RABBITMQ_HOST": "your-rabbitmq-host"
     }
   }
 }
 ```
 
-### 可用的MCP工具
-
-1. **save_chat_history**：将聊天记录保存为Markdown文件并发布到RabbitMQ
-2. **test_rabbitmq_connection**：测试RabbitMQ连接状态
-3. **get_rabbitmq_config**：检查当前RabbitMQ配置
-
 ## 项目结构
 
 ```
 MCP_Chat_Logger/
-├── chat_logger.py         # 主MCP服务器（RabbitMQ集成）
-├── rabbitmq_publisher.py  # RabbitMQ消息发布模块
-├── test_rabbitmq.py       # RabbitMQ连接测试脚本
-├── Makefile              # 便利命令
-├── .env.example           # 环境变量示例
-├── .env                   # 环境变量配置（用户创建）
-├── docker-compose.yml     # RabbitMQ Docker配置
-├── rabbitmq_init/        # RabbitMQ初始化脚本
-│   └── init.sh
+├── chat_logger.py         # 主MCP服务器
+├── utils/                 # 工具模块
+│   └── rabbitmq_publisher.py  # RabbitMQ消息发布模块
+├── dev-tools/            # 开发环境工具
+│   ├── docker-compose.yml    # RabbitMQ Docker配置
+│   ├── .env.example          # 开发用环境变量示例
+│   └── test_rabbitmq.py      # RabbitMQ连接测试脚本
 ├── chat_logs/            # 默认保存目录
 ├── pyproject.toml        # 项目设置和依赖
+├── .env                  # 环境变量配置（用户创建）
 ├── README.md             # 项目说明（中文）
 ├── README_ko.md          # 韩语说明
 ├── README_en.md          # 英文说明
 └── .gitignore            # Git忽略文件
 ```
 
-## 开发和维护
+## 安装选项
 
-### 清理命令
+### 通过Smithery自动安装
+
+通过[Smithery](https://smithery.ai/server/@AlexiFeng/MCP_Chat_Logger)为Claude Desktop自动安装MCP Chat Logger：
 
 ```bash
-# 清理临时文件
-make clean
-
-# 停止RabbitMQ服务器
-make stop-rabbitmq
+npx -y @smithery/cli install @AlexiFeng/MCP_Chat_Logger --client claude
 ```
 
 ## 下一阶段
@@ -206,6 +222,7 @@ make stop-rabbitmq
 - 添加Overview功能
 - 消息格式自定义选项
 - 额外的消息代理支持
+- 高可用性配置指南
 
 ## 贡献指南
 
