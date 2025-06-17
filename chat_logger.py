@@ -100,62 +100,6 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
     
     return result_message
 
-@mcp.tool()
-async def test_rabbitmq_connection() -> str:
-    """
-    Test RabbitMQ connection and configuration
-    
-    Returns:
-        str: Connection test result
-    """
-    try:
-        publisher = get_publisher()
-        
-        # Display connection information
-        connection_info = f"""
-🔗 RabbitMQ Connection Settings:
-- Host: {publisher.host}:{publisher.port}
-- Virtual Host: {publisher.virtual_host}
-- Exchange: {publisher.exchange}
-- Routing Key: {publisher.routing_key}
-- Queue Name: {publisher.queue_name}
-        """
-        
-        # Test connection
-        if publisher.test_connection():
-            return connection_info + "\n\n✅ RabbitMQ connection test successful!"
-        else:
-            return connection_info + "\n\n❌ RabbitMQ connection test failed. Please check your configuration."
-            
-    except Exception as e:
-        return f"❌ Error occurred during RabbitMQ connection test: {str(e)}"
-
-@mcp.tool()
-async def get_rabbitmq_config() -> str:
-    """
-    Get current RabbitMQ configuration from environment variables
-    
-    Returns:
-        str: Current RabbitMQ configuration
-    """
-    config = {
-        "RABBITMQ_HOST": os.getenv('RABBITMQ_HOST', 'localhost'),
-        "RABBITMQ_PORT": os.getenv('RABBITMQ_PORT', '5672'),
-        "RABBITMQ_USERNAME": os.getenv('RABBITMQ_USERNAME', 'guest'),
-        "RABBITMQ_PASSWORD": "[HIDDEN]" if os.getenv('RABBITMQ_PASSWORD') else "[NOT SET]",
-        "RABBITMQ_VIRTUAL_HOST": os.getenv('RABBITMQ_VIRTUAL_HOST', '/'),
-        "RABBITMQ_EXCHANGE": os.getenv('RABBITMQ_EXCHANGE', 'llmLogger'),
-        "RABBITMQ_ROUTING_KEY": os.getenv('RABBITMQ_ROUTING_KEY', 'llm_logger'),
-        "RABBITMQ_QUEUE_NAME": os.getenv('RABBITMQ_QUEUE_NAME', 'llm_logger')
-    }
-    
-    config_text = "📋 Current RabbitMQ Configuration:\n\n"
-    for key, value in config.items():
-        config_text += f"- {key}: {value}\n"
-    
-    config_text += "\n💡 To change settings: Edit .env file or set environment variables."
-    
-    return config_text
 
 if __name__ == "__main__":
     # Initialize and run the server
