@@ -8,6 +8,14 @@ from utils.rabbitmq_publisher import publish_chat_message, get_publisher
 # Load environment variables
 load_dotenv()
 
+# Determine AMQP usage based on environment variables
+def determine_amqp_usage():
+    """Determine if AMQP should be used based on environment variables"""
+    required_vars = ['RABBITMQ_HOST', 'RABBITMQ_PORT', 'RABBITMQ_USERNAME', 'RABBITMQ_PASSWORD']
+    return all(os.getenv(var) for var in required_vars)
+
+USE_AMQP = determine_amqp_usage()
+
 # Initialize FastMCP server
 mcp = FastMCP("chat_logger")
 
@@ -75,32 +83,40 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
     
     result_message = f"Chat history has been saved to file: {filename}"
     
-    # Publish message to RabbitMQ
-    try:
-        additional_metadata = {
-            "filename": filename,
-            "file_size": os.path.getsize(filename),
-            "message_count": len(messages),
-            "save_timestamp": timestamp
-        }
-        
-        publish_success = publish_chat_message(
-            messages=messages,
-            conversation_id=conversation_id,
-            additional_metadata=additional_metadata
-        )
-        
-        if publish_success:
-            result_message += "\n✓ RabbitMQ message published successfully"
-        else:
-            result_message += "\n⚠ RabbitMQ message publish failed (file saved successfully)"
+    # Publish message to RabbitMQ only if AMQP is enabled
+    if USE_AMQP:
+        try:
+            additional_metadata = {
+                "filename": filename,
+                "file_size": os.path.getsize(filename),
+                "message_count": len(messages),
+                "save_timestamp": timestamp
+            }
             
-    except Exception as e:
-        result_message += f"\n⚠ RabbitMQ publish error: {str(e)} (file saved successfully)"
+            publish_success = publish_chat_message(
+                messages=messages,
+                conversation_id=conversation_id,
+                additional_metadata=additional_metadata
+            )
+            
+            if publish_success:
+                result_message += "\n✓ RabbitMQ message published successfully"
+            else:
+                result_message += "\n⚠ RabbitMQ message publish failed (file saved successfully)"
+                
+        except Exception as e:
+            result_message += f"\n⚠ RabbitMQ publish error: {str(e)} (file saved successfully)"
+    else:
+        result_message += "\nℹ RabbitMQ not configured - file-only mode"
     
     return result_message
 
-
 if __name__ == "__main__":
+    # Print startup message based on AMQP configuration
+    if USE_AMQP:
+        print("🔧 MCP Chat Logger starting with RabbitMQ enabled")
+    else:
+        print("🔧 MCP Chat Logger starting in file-only mode (RabbitMQ not configured)")
+    
     # Initialize and run the server
     mcp.run(transport='stdio') 

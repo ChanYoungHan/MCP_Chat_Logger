@@ -70,6 +70,27 @@ EOF
 uv run chat_logger.py
 ```
 
+#### 📂 仅文件模式（无RabbitMQ）
+
+如果只想使用文件保存功能而不使用RabbitMQ，不设置环境变量即可自动启用仅文件模式：
+
+```bash
+# 无环境变量运行（自动进入仅文件模式）
+uv run chat_logger.py
+```
+
+### 3. 自动模式检测
+
+MCP Chat Logger根据环境变量设置情况自动决定运行模式：
+
+- **RabbitMQ模式**：当`RABBITMQ_HOST`、`RABBITMQ_PORT`、`RABBITMQ_USERNAME`、`RABBITMQ_PASSWORD`全部设置时
+- **仅文件模式**：当上述环境变量中任一未设置时
+
+```bash
+# 运行（根据环境变量自动决定模式）
+uv run chat_logger.py
+```
+
 ## 📋 环境详细配置
 
 ### 开发环境配置
@@ -162,11 +183,11 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
 
 ### 可用的MCP工具
 
-1. **save_chat_history**：将聊天记录保存为Markdown文件并发布到RabbitMQ
-2. **test_rabbitmq_connection**：测试RabbitMQ连接状态
-3. **get_rabbitmq_config**：检查当前RabbitMQ配置
+**save_chat_history**：将聊天记录保存为Markdown文件并发布到RabbitMQ（环境变量设置时）
 
 ## Claude Desktop / Cursor配置
+
+### RabbitMQ模式（设置环境变量）
 
 ```json
 {
@@ -181,8 +202,29 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "chat_logger.py"
     ],
     "env": {
-      "RABBITMQ_HOST": "your-rabbitmq-host"
+      "RABBITMQ_HOST": "your-rabbitmq-host",
+      "RABBITMQ_PORT": "5672",
+      "RABBITMQ_USERNAME": "your-username",
+      "RABBITMQ_PASSWORD": "your-password"
     }
+  }
+}
+```
+
+### 仅文件模式（无环境变量）
+
+```json
+{
+  "chat_logger_file_only": {
+    "name": "chat_logger_file_only",
+    "isActive": true,
+    "command": "uv",
+    "args": [
+      "--directory",
+      "/path/to/MCP_Chat_Logger",
+      "run",
+      "chat_logger.py"
+    ]
   }
 }
 ```

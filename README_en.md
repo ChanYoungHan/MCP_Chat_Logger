@@ -70,6 +70,27 @@ EOF
 uv run chat_logger.py
 ```
 
+#### 📂 File-Only Mode (Without RabbitMQ)
+
+If you want to use only file saving without RabbitMQ, simply don't set the environment variables and it will automatically run in file-only mode:
+
+```bash
+# Run without environment variables (automatically enters file-only mode)
+uv run chat_logger.py
+```
+
+### 3. Automatic Mode Detection
+
+MCP Chat Logger automatically determines the operating mode based on environment variable settings:
+
+- **RabbitMQ Mode**: When `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD` are all set
+- **File-Only Mode**: When any of the above environment variables is missing
+
+```bash
+# Run (automatically determines mode based on environment variables)
+uv run chat_logger.py
+```
+
 ## 📋 Environment-Specific Configuration
 
 ### Development Environment Setup
@@ -160,13 +181,13 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
 - **Queue Name**: `llm_logger`
 - **Binding**: Queue `llm_logger` bound to Exchange `llmLogger` with Routing Key `llm_logger`
 
-### Available MCP Tools
+### Available MCP Tool
 
-1. **save_chat_history**: Save chat history as Markdown files and publish to RabbitMQ
-2. **test_rabbitmq_connection**: Test RabbitMQ connection status
-3. **get_rabbitmq_config**: Check current RabbitMQ configuration
+**save_chat_history**: Save chat history as Markdown files and publish to RabbitMQ (when environment variables are set)
 
 ## Claude Desktop / Cursor Configuration
+
+### RabbitMQ Mode (With Environment Variables)
 
 ```json
 {
@@ -181,8 +202,29 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "chat_logger.py"
     ],
     "env": {
-      "RABBITMQ_HOST": "your-rabbitmq-host"
+      "RABBITMQ_HOST": "your-rabbitmq-host",
+      "RABBITMQ_PORT": "5672",
+      "RABBITMQ_USERNAME": "your-username",
+      "RABBITMQ_PASSWORD": "your-password"
     }
+  }
+}
+```
+
+### File-Only Mode (Without Environment Variables)
+
+```json
+{
+  "chat_logger_file_only": {
+    "name": "chat_logger_file_only",
+    "isActive": true,
+    "command": "uv",
+    "args": [
+      "--directory",
+      "/path/to/MCP_Chat_Logger",
+      "run",
+      "chat_logger.py"
+    ]
   }
 }
 ```

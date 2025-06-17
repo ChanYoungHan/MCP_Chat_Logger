@@ -70,6 +70,27 @@ EOF
 uv run chat_logger.py
 ```
 
+#### 📂 파일 전용 모드 (RabbitMQ 없이)
+
+RabbitMQ 없이 파일 저장만 사용하려는 경우, 환경변수를 설정하지 않으면 자동으로 파일 전용 모드로 실행됩니다:
+
+```bash
+# 환경변수 없이 실행 (자동으로 파일 전용 모드)
+uv run chat_logger.py
+```
+
+### 3. 자동 모드 감지
+
+MCP Chat Logger는 환경변수 설정 여부에 따라 자동으로 모드를 결정합니다:
+
+- **RabbitMQ 모드**: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD` 모두 설정된 경우
+- **파일 전용 모드**: 위 환경변수 중 하나라도 없는 경우
+
+```bash
+# 실행 (환경변수에 따라 자동으로 모드 결정)
+uv run chat_logger.py
+```
+
 ## 📋 환경별 상세 설정
 
 ### 개발환경 설정
@@ -160,13 +181,13 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
 - **큐 이름**: `llm_logger`
 - **바인딩**: 큐 `llm_logger`가 Exchange `llmLogger`에 라우팅 키 `llm_logger`로 바인딩됨
 
-### 사용 가능한 MCP 도구들
+### 사용 가능한 MCP 도구
 
-1. **save_chat_history**: 채팅 기록을 Markdown 파일로 저장하고 RabbitMQ로 발행
-2. **test_rabbitmq_connection**: RabbitMQ 연결 상태 테스트
-3. **get_rabbitmq_config**: 현재 RabbitMQ 설정 확인
+**save_chat_history**: 채팅 기록을 Markdown 파일로 저장하고 RabbitMQ로 발행 (환경변수가 설정된 경우)
 
 ## Claude Desktop / Cursor 설정
+
+### RabbitMQ 모드 (환경변수 설정)
 
 ```json
 {
@@ -181,8 +202,29 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "chat_logger.py"
     ],
     "env": {
-      "RABBITMQ_HOST": "your-rabbitmq-host"
+      "RABBITMQ_HOST": "your-rabbitmq-host",
+      "RABBITMQ_PORT": "5672",
+      "RABBITMQ_USERNAME": "your-username",
+      "RABBITMQ_PASSWORD": "your-password"
     }
+  }
+}
+```
+
+### 파일 전용 모드 (환경변수 없음)
+
+```json
+{
+  "chat_logger_file_only": {
+    "name": "chat_logger_file_only",
+    "isActive": true,
+    "command": "uv",
+    "args": [
+      "--directory",
+      "/path/to/MCP_Chat_Logger",
+      "run",
+      "chat_logger.py"
+    ]
   }
 }
 ```
