@@ -1,8 +1,8 @@
 """
-RabbitMQ 메시지 발행 모듈
+RabbitMQ Message Publishing Module
 
-이 모듈은 채팅 로그를 RabbitMQ 큐로 발행하는 기능을 제공합니다.
-환경변수를 통해 RabbitMQ 연결 설정을 관리합니다.
+This module provides functionality to publish chat logs to RabbitMQ queues.
+RabbitMQ connection settings are managed through environment variables.
 """
 
 import os
@@ -13,16 +13,16 @@ from datetime import datetime
 import pika
 from pika.exceptions import AMQPConnectionError, AMQPChannelError
 
-# 로깅 설정
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class RabbitMQPublisher:
-    """RabbitMQ 메시지 발행을 담당하는 클래스"""
+    """Class responsible for RabbitMQ message publishing"""
     
     def __init__(self):
-        """환경변수에서 RabbitMQ 설정을 로드하고 초기화"""
+        """Load RabbitMQ configuration from environment variables and initialize"""
         self.host = os.getenv('RABBITMQ_HOST', 'localhost')
         self.port = int(os.getenv('RABBITMQ_PORT', '5672'))
         self.username = os.getenv('RABBITMQ_USERNAME', 'guest')
@@ -32,7 +32,7 @@ class RabbitMQPublisher:
         self.routing_key = os.getenv('RABBITMQ_ROUTING_KEY', 'llm_logger')
         self.queue_name = os.getenv('RABBITMQ_QUEUE_NAME', 'llm_logger')
         
-        # 연결 설정
+        # Connection settings
         self.connection_timeout = int(os.getenv('RABBITMQ_CONNECTION_TIMEOUT', '30'))
         self.heartbeat = int(os.getenv('RABBITMQ_HEARTBEAT', '600'))
         self.blocked_connection_timeout = int(os.getenv('RABBITMQ_BLOCKED_CONNECTION_TIMEOUT', '300'))
@@ -40,10 +40,10 @@ class RabbitMQPublisher:
         self.connection = None
         self.channel = None
         
-        logger.info(f"RabbitMQ Publisher 초기화됨 - Host: {self.host}:{self.port}, Exchange: {self.exchange}")
+        logger.info(f"RabbitMQ Publisher initialized - Host: {self.host}:{self.port}, Exchange: {self.exchange}")
     
     def _create_connection(self) -> bool:
-        """RabbitMQ 연결을 생성하고 설정"""
+        """Create and configure RabbitMQ connection"""
         try:
             credentials = pika.PlainCredentials(self.username, self.password)
             parameters = pika.ConnectionParameters(
@@ -61,69 +61,69 @@ class RabbitMQPublisher:
             self.connection = pika.BlockingConnection(parameters)
             self.channel = self.connection.channel()
             
-            # Exchange 선언 (존재하지 않으면 생성)
+            # Declare exchange (create if not exists)
             self.channel.exchange_declare(
                 exchange=self.exchange,
                 exchange_type='direct',
                 durable=True
             )
             
-            # Queue 선언 (존재하지 않으면 생성)
+            # Declare queue (create if not exists)
             self.channel.queue_declare(
                 queue=self.queue_name,
                 durable=True
             )
             
-            # Queue를 Exchange에 바인딩
+            # Bind queue to exchange
             self.channel.queue_bind(
                 exchange=self.exchange,
                 queue=self.queue_name,
                 routing_key=self.routing_key
             )
             
-            logger.info("RabbitMQ 연결 및 설정 완료")
+            logger.info("RabbitMQ connection and configuration completed")
             return True
             
         except AMQPConnectionError as e:
-            logger.error(f"RabbitMQ 연결 실패: {e}")
+            logger.error(f"RabbitMQ connection failed: {e}")
             return False
         except Exception as e:
-            logger.error(f"RabbitMQ 설정 중 예상치 못한 오류: {e}")
+            logger.error(f"Unexpected error during RabbitMQ setup: {e}")
             return False
     
     def _close_connection(self):
-        """RabbitMQ 연결 종료"""
+        """Close RabbitMQ connection"""
         try:
             if self.channel and not self.channel.is_closed:
                 self.channel.close()
             if self.connection and not self.connection.is_closed:
                 self.connection.close()
-            logger.info("RabbitMQ 연결 종료됨")
+            logger.info("RabbitMQ connection closed")
         except Exception as e:
-            logger.error(f"RabbitMQ 연결 종료 중 오류: {e}")
+            logger.error(f"Error closing RabbitMQ connection: {e}")
     
     def publish_chat_log(self, 
                         messages: list, 
                         conversation_id: Optional[str] = None,
                         additional_metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
-        채팅 로그를 RabbitMQ로 발행
+        Publish chat log to RabbitMQ
         
         Args:
-            messages: 채팅 메시지 리스트
-            conversation_id: 대화 ID (선택사항)
-            additional_metadata: 추가 메타데이터 (선택사항)
+            messages: List of chat messages
+            conversation_id: Conversation ID (optional)
+            additional_metadata: Additional metadata (optional)
             
         Returns:
-            bool: 발행 성공 여부
+            bool: Whether publishing was successful
         """
         try:
-            # 연결이 없거나 닫혀있다면 새로 생성
+            # Create new connection if none exists or if closed
             if not self.connection or self.connection.is_closed:
                 if not self._create_connection():
                     return False
             
-            # 메시지 페이로드 구성
+            # Compose message payload
             payload = {
                 "timestamp": datetime.now().isoformat(),
                 "conversation_id": conversation_id,
@@ -131,73 +131,73 @@ class RabbitMQPublisher:
                 "metadata": additional_metadata or {}
             }
             
-            # JSON으로 직렬화
+            # Serialize to JSON
             message_body = json.dumps(payload, ensure_ascii=False, indent=2)
             
-            # 메시지 발행
+            # Publish message
             self.channel.basic_publish(
                 exchange=self.exchange,
                 routing_key=self.routing_key,
                 body=message_body.encode('utf-8'),
                 properties=pika.BasicProperties(
-                    delivery_mode=2,  # 메시지 영속성
+                    delivery_mode=2,  # Message persistence
                     content_type='application/json',
                     content_encoding='utf-8',
                     timestamp=int(datetime.now().timestamp())
                 )
             )
             
-            logger.info(f"채팅 로그 발행 성공 - Conversation ID: {conversation_id}, 메시지 수: {len(messages)}")
+            logger.info(f"Chat log published successfully - Conversation ID: {conversation_id}, Message count: {len(messages)}")
             return True
             
         except AMQPChannelError as e:
-            logger.error(f"RabbitMQ 채널 오류: {e}")
-            # 채널 오류시 연결 재설정 시도
+            logger.error(f"RabbitMQ channel error: {e}")
+            # Attempt to reset connection on channel error
             self._close_connection()
             return False
         except Exception as e:
-            logger.error(f"메시지 발행 중 오류: {e}")
+            logger.error(f"Error during message publishing: {e}")
             return False
     
     def test_connection(self) -> bool:
         """
-        RabbitMQ 연결 테스트
+        Test RabbitMQ connection
         
         Returns:
-            bool: 연결 테스트 성공 여부
+            bool: Whether connection test was successful
         """
         try:
             if self._create_connection():
                 self._close_connection()
-                logger.info("RabbitMQ 연결 테스트 성공")
+                logger.info("RabbitMQ connection test successful")
                 return True
             else:
-                logger.error("RabbitMQ 연결 테스트 실패")
+                logger.error("RabbitMQ connection test failed")
                 return False
         except Exception as e:
-            logger.error(f"연결 테스트 중 오류: {e}")
+            logger.error(f"Error during connection test: {e}")
             return False
     
     def __enter__(self):
-        """컨텍스트 매니저 진입"""
+        """Context manager entry"""
         self._create_connection()
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """컨텍스트 매니저 종료"""
+        """Context manager exit"""
         self._close_connection()
 
 
-# 글로벌 퍼블리셔 인스턴스
+# Global publisher instance
 _publisher_instance = None
 
 
 def get_publisher() -> RabbitMQPublisher:
     """
-    싱글톤 패턴으로 RabbitMQ 퍼블리셔 인스턴스 반환
+    Return RabbitMQ publisher instance using singleton pattern
     
     Returns:
-        RabbitMQPublisher: 퍼블리셔 인스턴스
+        RabbitMQPublisher: Publisher instance
     """
     global _publisher_instance
     if _publisher_instance is None:
@@ -209,15 +209,15 @@ def publish_chat_message(messages: list,
                         conversation_id: Optional[str] = None,
                         additional_metadata: Optional[Dict[str, Any]] = None) -> bool:
     """
-    편의 함수: 채팅 메시지를 RabbitMQ로 발행
+    Convenient function to publish chat messages
     
     Args:
-        messages: 채팅 메시지 리스트
-        conversation_id: 대화 ID (선택사항)
-        additional_metadata: 추가 메타데이터 (선택사항)
+        messages: List of chat messages
+        conversation_id: Conversation ID (optional)
+        additional_metadata: Additional metadata (optional)
         
     Returns:
-        bool: 발행 성공 여부
+        bool: Whether publishing was successful
     """
     publisher = get_publisher()
     return publisher.publish_chat_log(messages, conversation_id, additional_metadata)

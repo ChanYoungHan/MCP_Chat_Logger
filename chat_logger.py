@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from rabbitmq_publisher import publish_chat_message, get_publisher
 
-# 환경변수 로드
+# Load environment variables
 load_dotenv()
 
 # Initialize FastMCP server
@@ -39,6 +39,22 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
         messages: List of chat messages, each containing role and content
         conversation_id: Optional conversation ID for file naming
     """
+    # 1. Validate messages parameter
+    if not messages:
+        return "❌ Error: messages parameter is empty or missing."
+    
+    if not isinstance(messages, list):
+        return "❌ Error: messages must be a list."
+    
+    # 2. Validate individual messages
+    for i, message in enumerate(messages):
+        if not isinstance(message, dict):
+            return f"❌ Error: Message #{i} is not in proper format."
+        
+        if 'role' not in message or 'content' not in message:
+            return f"❌ Error: Message #{i} is missing 'role' or 'content'."
+    
+    
     ensure_logs_directory()
     
     # Generate filename
@@ -59,7 +75,7 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
     
     result_message = f"Chat history has been saved to file: {filename}"
     
-    # RabbitMQ로 메시지 발행
+    # Publish message to RabbitMQ
     try:
         additional_metadata = {
             "filename": filename,
@@ -75,12 +91,12 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
         )
         
         if publish_success:
-            result_message += "\n✓ RabbitMQ로 메시지 발행 성공"
+            result_message += "\n✓ RabbitMQ message published successfully"
         else:
-            result_message += "\n⚠ RabbitMQ 메시지 발행 실패 (파일은 정상 저장됨)"
+            result_message += "\n⚠ RabbitMQ message publish failed (file saved successfully)"
             
     except Exception as e:
-        result_message += f"\n⚠ RabbitMQ 발행 중 오류: {str(e)} (파일은 정상 저장됨)"
+        result_message += f"\n⚠ RabbitMQ publish error: {str(e)} (file saved successfully)"
     
     return result_message
 
@@ -95,9 +111,9 @@ async def test_rabbitmq_connection() -> str:
     try:
         publisher = get_publisher()
         
-        # 연결 정보 표시
+        # Display connection information
         connection_info = f"""
-🔗 RabbitMQ 연결 설정:
+🔗 RabbitMQ Connection Settings:
 - Host: {publisher.host}:{publisher.port}
 - Virtual Host: {publisher.virtual_host}
 - Exchange: {publisher.exchange}
@@ -105,14 +121,14 @@ async def test_rabbitmq_connection() -> str:
 - Queue Name: {publisher.queue_name}
         """
         
-        # 연결 테스트
+        # Test connection
         if publisher.test_connection():
-            return connection_info + "\n\n✅ RabbitMQ 연결 테스트 성공!"
+            return connection_info + "\n\n✅ RabbitMQ connection test successful!"
         else:
-            return connection_info + "\n\n❌ RabbitMQ 연결 테스트 실패. 설정을 확인해주세요."
+            return connection_info + "\n\n❌ RabbitMQ connection test failed. Please check your configuration."
             
     except Exception as e:
-        return f"❌ RabbitMQ 연결 테스트 중 오류 발생: {str(e)}"
+        return f"❌ Error occurred during RabbitMQ connection test: {str(e)}"
 
 @mcp.tool()
 async def get_rabbitmq_config() -> str:
@@ -133,11 +149,11 @@ async def get_rabbitmq_config() -> str:
         "RABBITMQ_QUEUE_NAME": os.getenv('RABBITMQ_QUEUE_NAME', 'llm_logger')
     }
     
-    config_text = "📋 현재 RabbitMQ 설정:\n\n"
+    config_text = "📋 Current RabbitMQ Configuration:\n\n"
     for key, value in config.items():
         config_text += f"- {key}: {value}\n"
     
-    config_text += "\n💡 설정 변경: .env 파일을 수정하거나 환경변수를 설정하세요."
+    config_text += "\n💡 To change settings: Edit .env file or set environment variables."
     
     return config_text
 
