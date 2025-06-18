@@ -28,7 +28,8 @@ class RabbitMQPublisher:
         self.username = os.getenv('RABBITMQ_USERNAME', 'guest')
         self.password = os.getenv('RABBITMQ_PASSWORD', 'guest')
         self.virtual_host = os.getenv('RABBITMQ_VIRTUAL_HOST', '/')
-        self.exchange = os.getenv('RABBITMQ_EXCHANGE', 'llmLogger')
+        # Updated to use 'pkms' exchange as per design specification
+        self.exchange = os.getenv('RABBITMQ_EXCHANGE', 'pkms')
         self.routing_key = os.getenv('RABBITMQ_ROUTING_KEY', 'llm_logger')
         self.queue_name = os.getenv('RABBITMQ_QUEUE_NAME', 'llm_logger')
         
@@ -105,13 +106,15 @@ class RabbitMQPublisher:
     def publish_chat_log(self, 
                         messages: list, 
                         conversation_id: Optional[str] = None,
+                        message_type: str = "chat",
                         additional_metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
-        Publish chat log to RabbitMQ
+        Publish chat log to RabbitMQ according to design specification
         
         Args:
             messages: List of chat messages
             conversation_id: Conversation ID (optional)
+            message_type: Type of message (chat, analysis, etc.)
             additional_metadata: Additional metadata (optional)
             
         Returns:
@@ -123,14 +126,19 @@ class RabbitMQPublisher:
                 if not self._create_connection():
                     return False
             
-            # Compose message payload
+            # Get source from environment variable (MCP_SOURCE)
+            source = os.getenv('MCP_SOURCE', 'claude')
+            
+            # Compose message payload according to design specification
             payload = {
-                "timestamp": datetime.now().isoformat(),
+                "source": source,
+                "type": message_type,
                 "conversation_id": conversation_id,
-                "messages": messages,
+                "sending_at": datetime.now().strftime("%Y%m%d %H%M%S"),
+                "contents": messages,
                 "metadata": additional_metadata or {}
             }
-            
+                        
             # Serialize to JSON
             message_body = json.dumps(payload, ensure_ascii=False, indent=2)
             
@@ -147,7 +155,7 @@ class RabbitMQPublisher:
                 )
             )
             
-            logger.info(f"Chat log published successfully - Conversation ID: {conversation_id}, Message count: {len(messages)}")
+            logger.info(f"Message published successfully - Source: {source}, Type: {message_type}, Conversation ID: {conversation_id}, Message count: {len(messages)}")
             return True
             
         except AMQPChannelError as e:
@@ -178,6 +186,29 @@ class RabbitMQPublisher:
             logger.error(f"Error during connection test: {e}")
             return False
     
+    def get_configuration(self) -> str:
+        """
+        Get current RabbitMQ configuration as formatted string
+        
+        Returns:
+            str: Configuration information
+        """
+        config = f"""RabbitMQ Configuration:
+Host: {self.host}:{self.port}
+Virtual Host: {self.virtual_host}
+Exchange: {self.exchange} (direct)
+Queue: {self.queue_name}
+Routing Key: {self.routing_key}
+Username: {self.username}
+Source: {os.getenv('MCP_SOURCE', 'claude')}
+
+Connection Settings:
+- Connection Timeout: {self.connection_timeout}s
+- Heartbeat: {self.heartbeat}s
+- Blocked Connection Timeout: {self.blocked_connection_timeout}s"""
+        
+        return config
+    
     def __enter__(self):
         """Context manager entry"""
         self._create_connection()
@@ -207,6 +238,7 @@ def get_publisher() -> RabbitMQPublisher:
 
 def publish_chat_message(messages: list, 
                         conversation_id: Optional[str] = None,
+                        message_type: str = "chat",
                         additional_metadata: Optional[Dict[str, Any]] = None) -> bool:
     """
     Convenient function to publish chat messages
@@ -214,10 +246,11 @@ def publish_chat_message(messages: list,
     Args:
         messages: List of chat messages
         conversation_id: Conversation ID (optional)
+        message_type: Type of message (chat, analysis, etc.)
         additional_metadata: Additional metadata (optional)
         
     Returns:
         bool: Whether publishing was successful
     """
     publisher = get_publisher()
-    return publisher.publish_chat_log(messages, conversation_id, additional_metadata)
+    return publisher.publish_chat_log(messages, conversation_id, message_type, additional_metadata)
