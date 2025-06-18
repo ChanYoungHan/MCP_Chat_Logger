@@ -106,9 +106,14 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=guest
 RABBITMQ_PASSWORD=guest
 RABBITMQ_VIRTUAL_HOST=/
-RABBITMQ_EXCHANGE=llmLogger
+
+# Message Queue Routing (Design Specification)
+RABBITMQ_EXCHANGE=pkms
 RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
+
+# Source Configuration (Required)
+MCP_SOURCE=claude
 ```
 
 #### Docker命令
@@ -153,9 +158,14 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=your-username
 RABBITMQ_PASSWORD=your-password
 RABBITMQ_VIRTUAL_HOST=your-vhost
-RABBITMQ_EXCHANGE=llmLogger
+
+# Message Queue Routing (Design Specification)
+RABBITMQ_EXCHANGE=pkms
 RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
+
+# Source Configuration (Required)
+MCP_SOURCE=claude
 
 # 可选连接设置
 RABBITMQ_CONNECTION_TIMEOUT=30
@@ -173,13 +183,41 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
 - 🛠️ **环境变量**：通过`.env`文件进行配置管理
 - ☁️ **多环境支持**：支持开发环境（Docker）和生产环境（CloudAMQP）
 
-### Exchange设计
+### Message Queue设计
 
-- **Exchange名称**：`llmLogger`
+- **Exchange名称**：`pkms`
 - **Exchange类型**：`direct`
 - **路由键**：`llm_logger`
 - **队列名称**：`llm_logger`
-- **绑定**：队列`llm_logger`通过路由键`llm_logger`绑定到Exchange `llmLogger`
+- **绑定**：队列`llm_logger`通过路由键`llm_logger`绑定到Exchange `pkms`
+
+### 消息结构
+
+```json
+{
+  "source": "claude",
+  "type": "chat" | "analysis",
+  "conversation_id": "str",
+  "sending_at": "YYYYmmdd HHMMSS",
+  "contents": [],
+  "metadata": {}
+}
+```
+
+### 文件格式
+
+```markdown
+# Chat History
+Conversation ID: 20250618_000500_001
+Date: 2025-06-18 00:06:02
+Source: claude
+
+### User - 2025-06-18 00:06:02
+...
+
+### Assistant - 2025-06-18 00:06:02
+...
+```
 
 ### 可用的MCP工具
 
@@ -202,6 +240,7 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "chat_logger.py"
     ],
     "env": {
+      "MCP_SOURCE": "claude",
       "RABBITMQ_HOST": "your-rabbitmq-host",
       "RABBITMQ_PORT": "5672",
       "RABBITMQ_USERNAME": "your-username",
@@ -224,7 +263,10 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "/path/to/MCP_Chat_Logger",
       "run",
       "chat_logger.py"
-    ]
+    ],
+    "env": {
+      "MCP_SOURCE": "claude"
+    }
   }
 }
 ```
