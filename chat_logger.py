@@ -1,5 +1,6 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
+import re
 from datetime import datetime
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
@@ -69,10 +70,15 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"chat_logs/chat_{conversation_id}_{timestamp}.md" if conversation_id else f"chat_logs/chat_{timestamp}.md"
     
-    # Format all messages
+    # Get source from environment variable
+    source = os.getenv('MCP_SOURCE', 'claude')
+    
+    # Format content according to design specification
     formatted_content = "# Chat History\n\n"
-    formatted_content += f"Conversation ID: {conversation_id}\n" if conversation_id else ""
-    formatted_content += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    if conversation_id:
+        formatted_content += f"Conversation ID: {conversation_id}\n"
+    formatted_content += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    formatted_content += f"Source: {source}\n\n"
     
     for message in messages:
         formatted_content += format_message(message)
@@ -90,33 +96,38 @@ async def save_chat_history(messages: List[Dict[str, Any]], conversation_id: str
                 "filename": filename,
                 "file_size": os.path.getsize(filename),
                 "message_count": len(messages),
-                "save_timestamp": timestamp
+                "save_timestamp": timestamp,
+                "source": source
             }
             
             publish_success = publish_chat_message(
                 messages=messages,
                 conversation_id=conversation_id,
+                message_type="chat",
                 additional_metadata=additional_metadata
             )
             
             if publish_success:
-                result_message += "\n✓ RabbitMQ message published successfully"
+                result_message += f"\n✓ RabbitMQ message published successfully (source: {source})"
             else:
                 result_message += "\n⚠ RabbitMQ message publish failed (file saved successfully)"
                 
         except Exception as e:
             result_message += f"\n⚠ RabbitMQ publish error: {str(e)} (file saved successfully)"
     else:
-        result_message += "\nℹ RabbitMQ not configured - file-only mode"
+        result_message += f"\nℹ RabbitMQ not configured - file-only mode (source: {source})"
     
     return result_message
 
 if __name__ == "__main__":
+    # Get source for startup message
+    source = os.getenv('MCP_SOURCE', 'claude')
+    
     # Print startup message based on AMQP configuration
     if USE_AMQP:
-        print("🔧 MCP Chat Logger starting with RabbitMQ enabled")
+        print(f"🔧 MCP Chat Logger starting with RabbitMQ enabled (source: {source})")
     else:
-        print("🔧 MCP Chat Logger starting in file-only mode (RabbitMQ not configured)")
+        print(f"🔧 MCP Chat Logger starting in file-only mode (source: {source})")
     
     # Initialize and run the server
     mcp.run(transport='stdio') 

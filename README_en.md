@@ -106,9 +106,14 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=guest
 RABBITMQ_PASSWORD=guest
 RABBITMQ_VIRTUAL_HOST=/
-RABBITMQ_EXCHANGE=llmLogger
+
+# Message Queue Routing (Design Specification)
+RABBITMQ_EXCHANGE=pkms
 RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
+
+# Source Configuration (Required)
+MCP_SOURCE=claude
 ```
 
 #### Docker Commands
@@ -153,9 +158,14 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=your-username
 RABBITMQ_PASSWORD=your-password
 RABBITMQ_VIRTUAL_HOST=your-vhost
-RABBITMQ_EXCHANGE=llmLogger
+
+# Message Queue Routing (Design Specification)
+RABBITMQ_EXCHANGE=pkms
 RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
+
+# Source Configuration (Required)
+MCP_SOURCE=claude
 
 # Optional connection settings
 RABBITMQ_CONNECTION_TIMEOUT=30
@@ -173,13 +183,41 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
 - 🛠️ **Environment Variables**: Configuration management through `.env` files
 - ☁️ **Multi-Environment Support**: Support for development (Docker) and production (CloudAMQP) environments
 
-### Exchange Design
+### Message Queue Design
 
-- **Exchange Name**: `llmLogger`
+- **Exchange Name**: `pkms`
 - **Exchange Type**: `direct`
 - **Routing Key**: `llm_logger`
 - **Queue Name**: `llm_logger`
-- **Binding**: Queue `llm_logger` bound to Exchange `llmLogger` with Routing Key `llm_logger`
+- **Binding**: Queue `llm_logger` bound to Exchange `pkms` with Routing Key `llm_logger`
+
+### Message Structure
+
+```json
+{
+  "source": "claude",
+  "type": "chat" | "analysis",
+  "conversation_id": "str",
+  "sending_at": "YYYYmmdd HHMMSS",
+  "contents": [],
+  "metadata": {}
+}
+```
+
+### File Format
+
+```markdown
+# Chat History
+Conversation ID: 20250618_000500_001
+Date: 2025-06-18 00:06:02
+Source: claude
+
+### User - 2025-06-18 00:06:02
+...
+
+### Assistant - 2025-06-18 00:06:02
+...
+```
 
 ### Available MCP Tool
 
@@ -202,6 +240,7 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "chat_logger.py"
     ],
     "env": {
+      "MCP_SOURCE": "claude",
       "RABBITMQ_HOST": "your-rabbitmq-host",
       "RABBITMQ_PORT": "5672",
       "RABBITMQ_USERNAME": "your-username",
@@ -224,7 +263,10 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "/path/to/MCP_Chat_Logger",
       "run",
       "chat_logger.py"
-    ]
+    ],
+    "env": {
+      "MCP_SOURCE": "claude"
+    }
   }
 }
 ```

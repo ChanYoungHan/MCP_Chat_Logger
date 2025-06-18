@@ -8,7 +8,7 @@ This script tests RabbitMQ connection and sets up necessary Exchange and Queue.
 import os
 import sys
 from dotenv import load_dotenv
-from rabbitmq_publisher import RabbitMQPublisher
+from MCP_Chat_Logger.utils.rabbitmq_publisher import RabbitMQPublisher
 
 def main():
     """Main function"""

@@ -106,9 +106,14 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=guest
 RABBITMQ_PASSWORD=guest
 RABBITMQ_VIRTUAL_HOST=/
-RABBITMQ_EXCHANGE=llmLogger
+
+# Message Queue Routing (Design Specification)
+RABBITMQ_EXCHANGE=pkms
 RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
+
+# Source Configuration (Required)
+MCP_SOURCE=claude
 ```
 
 #### Docker 명령어
@@ -153,9 +158,14 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=your-username
 RABBITMQ_PASSWORD=your-password
 RABBITMQ_VIRTUAL_HOST=your-vhost
-RABBITMQ_EXCHANGE=llmLogger
+
+# Message Queue Routing (Design Specification)
+RABBITMQ_EXCHANGE=pkms
 RABBITMQ_ROUTING_KEY=llm_logger
 RABBITMQ_QUEUE_NAME=llm_logger
+
+# Source Configuration (Required)
+MCP_SOURCE=claude
 
 # 선택적 연결 설정
 RABBITMQ_CONNECTION_TIMEOUT=30
@@ -173,13 +183,41 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
 - 🛠️ **환경변수**: `.env` 파일을 통한 설정 관리
 - ☁️ **다중 환경**: 개발환경(Docker)과 운영환경(CloudAMQP) 지원
 
-### Exchange 설계
+### Message Queue 설계
 
-- **Exchange 이름**: `llmLogger`
+- **Exchange 이름**: `pkms`
 - **Exchange 타입**: `direct`
 - **라우팅 키**: `llm_logger`
 - **큐 이름**: `llm_logger`
-- **바인딩**: 큐 `llm_logger`가 Exchange `llmLogger`에 라우팅 키 `llm_logger`로 바인딩됨
+- **바인딩**: 큐 `llm_logger`가 Exchange `pkms`에 라우팅 키 `llm_logger`로 바인딩됨
+
+### 메시지 구조
+
+```json
+{
+  "source": "claude",
+  "type": "chat" | "analysis",
+  "conversation_id": "str",
+  "sending_at": "YYYYmmdd HHMMSS",
+  "contents": [],
+  "metadata": {}
+}
+```
+
+### 파일 형식
+
+```markdown
+# Chat History
+Conversation ID: 20250618_000500_001
+Date: 2025-06-18 00:06:02
+Source: claude
+
+### User - 2025-06-18 00:06:02
+...
+
+### Assistant - 2025-06-18 00:06:02
+...
+```
 
 ### 사용 가능한 MCP 도구
 
@@ -202,6 +240,7 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "chat_logger.py"
     ],
     "env": {
+      "MCP_SOURCE": "claude",
       "RABBITMQ_HOST": "your-rabbitmq-host",
       "RABBITMQ_PORT": "5672",
       "RABBITMQ_USERNAME": "your-username",
@@ -224,7 +263,10 @@ RABBITMQ_BLOCKED_CONNECTION_TIMEOUT=300
       "/path/to/MCP_Chat_Logger",
       "run",
       "chat_logger.py"
-    ]
+    ],
+    "env": {
+      "MCP_SOURCE": "claude",
+    }
   }
 }
 ```
