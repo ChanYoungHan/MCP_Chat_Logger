@@ -33,10 +33,10 @@ class RabbitMQPublisher:
         self.routing_key = os.getenv('RABBITMQ_ROUTING_KEY', 'llm_logger')
         self.queue_name = os.getenv('RABBITMQ_QUEUE_NAME', 'llm_logger')
         
-        # Connection settings
-        self.connection_timeout = int(os.getenv('RABBITMQ_CONNECTION_TIMEOUT', '30'))
-        self.heartbeat = int(os.getenv('RABBITMQ_HEARTBEAT', '600'))
-        self.blocked_connection_timeout = int(os.getenv('RABBITMQ_BLOCKED_CONNECTION_TIMEOUT', '300'))
+        # Connection settings - 더 보수적인 값으로 설정
+        self.connection_timeout = int(os.getenv('RABBITMQ_CONNECTION_TIMEOUT', '10'))
+        self.heartbeat = int(os.getenv('RABBITMQ_HEARTBEAT', '300'))
+        self.blocked_connection_timeout = int(os.getenv('RABBITMQ_BLOCKED_CONNECTION_TIMEOUT', '60'))
         
         self.connection = None
         self.channel = None
@@ -52,11 +52,17 @@ class RabbitMQPublisher:
                 port=self.port,
                 virtual_host=self.virtual_host,
                 credentials=credentials,
-                connection_attempts=3,
-                retry_delay=2,
+                connection_attempts=5,  # 재시도 횟수 증가
+                retry_delay=1,  # 짧은 대기 시간
                 socket_timeout=self.connection_timeout,
                 heartbeat=self.heartbeat,
-                blocked_connection_timeout=self.blocked_connection_timeout
+                blocked_connection_timeout=self.blocked_connection_timeout,
+                # IPv6 문제 해결을 위한 추가 옵션
+                tcp_options={
+                    'TCP_KEEPIDLE': 600,
+                    'TCP_KEEPINTVL': 30,
+                    'TCP_KEEPCNT': 3
+                }
             )
             
             self.connection = pika.BlockingConnection(parameters)
@@ -120,52 +126,72 @@ class RabbitMQPublisher:
         Returns:
             bool: Whether publishing was successful
         """
-        try:
-            # Create new connection if none exists or if closed
-            if not self.connection or self.connection.is_closed:
-                if not self._create_connection():
-                    return False
-            
-            # Get source from environment variable (MCP_SOURCE)
-            source = os.getenv('MCP_SOURCE', 'claude')
-            
-            # Compose message payload according to design specification
-            payload = {
-                "source": source,
-                "type": message_type,
-                "conversation_id": conversation_id,
-                "sending_at": datetime.now().strftime("%Y%m%d %H%M%S"),
-                "contents": messages,
-                "metadata": additional_metadata or {}
-            }
-                        
-            # Serialize to JSON
-            message_body = json.dumps(payload, ensure_ascii=False, indent=2)
-            
-            # Publish message
-            self.channel.basic_publish(
-                exchange=self.exchange,
-                routing_key=self.routing_key,
-                body=message_body.encode('utf-8'),
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # Message persistence
-                    content_type='application/json',
-                    content_encoding='utf-8',
-                    timestamp=int(datetime.now().timestamp())
+        # 재시도 로직 구현
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # 연결 상태 확인 및 생성
+                if not self.connection or self.connection.is_closed:
+                    if not self._create_connection():
+                        if attempt < max_retries - 1:
+                            logger.warning(f"Connection attempt {attempt + 1} failed, retrying...")
+                            continue
+                        return False
+                
+                # 채널 상태 확인
+                if not self.channel or self.channel.is_closed:
+                    if not self._create_connection():
+                        if attempt < max_retries - 1:
+                            logger.warning(f"Channel creation attempt {attempt + 1} failed, retrying...")
+                            continue
+                        return False
+                
+                # Get source from environment variable (MCP_SOURCE)
+                source = os.getenv('MCP_SOURCE', 'claude')
+                
+                # Compose message payload according to design specification
+                payload = {
+                    "source": source,
+                    "type": message_type,
+                    "conversation_id": conversation_id,
+                    "sending_at": datetime.now().strftime("%Y%m%d %H%M%S"),
+                    "contents": messages,
+                    "metadata": additional_metadata or {}
+                }
+                            
+                # Serialize to JSON
+                message_body = json.dumps(payload, ensure_ascii=False, indent=2)
+                
+                # Publish message
+                self.channel.basic_publish(
+                    exchange=self.exchange,
+                    routing_key=self.routing_key,
+                    body=message_body.encode('utf-8'),
+                    properties=pika.BasicProperties(
+                        delivery_mode=2,  # Message persistence
+                        content_type='application/json',
+                        content_encoding='utf-8',
+                        timestamp=int(datetime.now().timestamp())
+                    )
                 )
-            )
-            
-            logger.info(f"Message published successfully - Source: {source}, Type: {message_type}, Conversation ID: {conversation_id}, Message count: {len(messages)}")
-            return True
-            
-        except AMQPChannelError as e:
-            logger.error(f"RabbitMQ channel error: {e}")
-            # Attempt to reset connection on channel error
-            self._close_connection()
-            return False
-        except Exception as e:
-            logger.error(f"Error during message publishing: {e}")
-            return False
+                
+                logger.info(f"Message published successfully - Source: {source}, Type: {message_type}, Conversation ID: {conversation_id}, Message count: {len(messages)}")
+                return True
+                
+            except AMQPChannelError as e:
+                logger.error(f"RabbitMQ channel error: {e}")
+                # Attempt to reset connection on channel error
+                self._close_connection()
+                if attempt < max_retries - 1:
+                    logger.warning(f"Channel error on attempt {attempt + 1}, retrying...")
+                    continue
+                return False
+            except Exception as e:
+                logger.error(f"Error during message publishing: {e}")
+                if attempt < max_retries - 1:
+                    logger.warning(f"Publishing attempt {attempt + 1} failed, retrying...")
+                    continue
+                return False
     
     def test_connection(self) -> bool:
         """
